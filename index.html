@@ -641,8 +641,8 @@
             padding: 60px 40px;
             max-width: 800px;
             margin: 0 auto;
-            min-height: 1000px;
-            box-shadow: 0 10px 50px rgba(0,0,0,0.2);
+            min-height: auto !important;
+            box-shadow: none !important;
         }
         
         /* Classic Template */
@@ -841,7 +841,7 @@
         
         /* Editable Content */
         [contenteditable="true"] {
-            outline: 2px dashed transparent;
+            outline:none !important;
             transition: outline 0.3s;
             padding: 8px;
             border-radius: 3px;
@@ -849,7 +849,7 @@
         
         [contenteditable="true"]:hover {
             outline-color: #007bff;
-            background-color: rgba(0, 123, 255, 0.05);
+            background: transparent !important;
         }
         
         [contenteditable="true"]:focus {
@@ -1683,7 +1683,7 @@
             `;
         }
 
-        // Download PDF - FIXED VERSION
+        // Download PDF - FIXED TO SHOW CONTENT PROPERLY
         function downloadPDF() {
             const element = document.getElementById('programPreviewContainer');
             const filename = `funeral-program-${appState.formData.name.replace(/\s+/g, '-').toLowerCase()}.pdf`;
@@ -1694,78 +1694,99 @@
             downloadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating PDF...';
             downloadBtn.disabled = true;
 
-            // Wait a moment for any final rendering
-            setTimeout(() => {
-                // Clone the element to avoid modifying the original
-                const clone = element.cloneNode(true);
-                
-                // Remove contenteditable attributes from clone
-                clone.querySelectorAll('[contenteditable]').forEach(el => {
-                    el.removeAttribute('contenteditable');
-                    el.style.outline = 'none';
-                });
-                
-                // Create a temporary container
-                const tempContainer = document.createElement('div');
-                tempContainer.style.position = 'fixed';
-                tempContainer.style.left = '-9999px';
-                tempContainer.style.top = '0';
-                tempContainer.style.width = '816px'; // Letter size width in pixels at 96 DPI
-                document.body.appendChild(tempContainer);
-                tempContainer.appendChild(clone);
-                
-                const opt = {
-                    margin: 0.5,
-                    filename: filename,
-                    image: { 
-                        type: 'jpeg', 
-                        quality: 0.98 
-                    },
-                    html2canvas: { 
-                        scale: 2,
-                        useCORS: false,
-                        logging: true,
-                        allowTaint: true,
-                        backgroundColor: '#ffffff',
-                        windowWidth: 816,
-                        scrollY: 0,
-                        scrollX: 0
-                    },
-                    jsPDF: { 
-                        unit: 'in', 
-                        format: 'letter', 
-                        orientation: 'portrait',
-                        compress: true
-                    }
-                };
+            // Create a clean clone for PDF generation
+            const clone = element.cloneNode(true);
+            
+            // Remove contenteditable attributes
+            clone.querySelectorAll('[contenteditable]').forEach(el => {
+                el.removeAttribute('contenteditable');
+                el.style.outline = 'none';
+                el.style.border = 'none';
 
-                // Generate PDF from the clone
-                html2pdf().set(opt).from(clone).save()
-                    .then(() => {
-                        // Clean up
-                        document.body.removeChild(tempContainer);
-                        
-                        // Restore button
-                        downloadBtn.innerHTML = originalText;
-                        downloadBtn.disabled = false;
-                        
-                        alert('Your PDF has been downloaded successfully!');
-                    })
-                    .catch(err => {
-                        console.error('PDF generation error:', err);
-                        
-                        // Clean up
-                        if (document.body.contains(tempContainer)) {
-                            document.body.removeChild(tempContainer);
+            });
+            
+            // Remove the wrapper box shadow for cleaner PDF
+            clone.style.boxShadow = 'none';
+            clone.style.maxWidth = '100%';
+            clone.style.minHeight = 'auto';
+            clone.style.display ='block';
+            clone.style.position = 'relative';
+            clone.style.width ='100%';
+            clone.style.margin = '0 auto';
+            clone.style.padding ='60px 40px';
+
+
+            // PDF generation options
+            const opt = {
+                margin: [0.5, 0.5, 0.5, 0.5],
+                filename: filename,
+                image: { 
+                    type: 'jpeg', 
+                    quality: 0.95 
+                },
+                html2canvas: { 
+                    scale: 2,
+                    useCORS: true,
+                    logging: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff',
+                    scrollY : 0,
+                    scrollX: 0,
+                    windowWidth: 800,
+                    width: 800,
+                    x: 0 ,
+                    y: 0,
+                    onclone: function(clonedDoc){
+                        const clonedElement = clonedDoc.getElementById('programPreviewContainer');
+                        if (clonedElement) {
+                         
+                            clonedElement.style.minHeight = 'auto';
+                            clonedElement.style.display ='block';
+                            clonedElement.style.margin = '0 auto';
+                            clonedElement.style.width ='100%';
+                            clonedElement.style.maxWidth ='750px';
+                            clonedElement.style.padding ='60px 40px';
+                            clonedElement.style.boxSizing ='border-box';
+                            
+                            const wrapper = clonedElement.parentElement;
+                            if (wrapper) {
+                                wrapper.style.background = '#ffffff';
+                                wrapper.style.padding = '0';
+                            }
                         }
-                        
-                        alert('There was an issue generating the PDF. Please try again.');
-                        
-                        // Restore button
-                        downloadBtn.innerHTML = originalText;
-                        downloadBtn.disabled = false;
-                    });
-            }, 500);
+                    }
+                    
+                    
+                },
+                jsPDF: { 
+                    unit: 'in', 
+                    format: 'letter', 
+                    orientation: 'portrait',
+                    compress:true
+                },
+                pagebreak:{
+                    mode:['avoid-all'],
+                    before: '.page-break-before',
+                    after: '.page-break-after',
+                }
+            };
+
+            // Generate and download PDF
+            html2pdf().set(opt).from(clone).save()
+                .then(() => {
+                    // Restore button
+                    downloadBtn.innerHTML = originalText;
+                    downloadBtn.disabled = false;
+                    alert('Your PDF has been downloaded successfully!');
+                })
+                .catch(err => {
+                    console.error('PDF generation error:', err);
+                    alert('There was an issue generating the PDF. Please try again.');
+                    
+                    // Restore button
+                    downloadBtn.innerHTML = originalText;
+                    downloadBtn.disabled = false;
+                });
         }
 
         // Regenerate full program
